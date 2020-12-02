@@ -1,7 +1,7 @@
 use super::*;
 use core::mem;
 
-use libm::{F32Ext, F64Ext};
+use crate::libm::{F32Ext, F64Ext};
 
 pub struct Scalar;
 impl Simd for Scalar {
@@ -43,6 +43,11 @@ impl Simd for Scalar {
     #[inline(always)]
     unsafe fn andnot_epi64(a: Self::Vi64, b: Self::Vi64) -> Self::Vi64 {
         (!a) & b
+    }
+    #[inline(always)]
+    unsafe fn testz_ps(a: Self::Vf32, b: Self::Vf32) -> i32 {
+        let tmp = a.0.to_bits() & b.0.to_bits();
+        if tmp >> 31 == 0 { 1 } else { 0 }
     }
     #[inline(always)]
     unsafe fn blendv_epi32(a: Self::Vi32, b: Self::Vi32, mask: Self::Vi32) -> Self::Vi32 {

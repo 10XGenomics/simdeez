@@ -7,9 +7,11 @@ mod tests {
     use simdeez::sse2::*;
     use simdeez::sse41::*;
     use simdeez::*;
+    use simdeez::special::SimdSpecial;
     use std::f32::*;
     use std::f64::*;
     use std::*;
+    use float_cmp::Ulps;
 
     // Macro for checking if f32/f64 are equal to within a delta
     macro_rules! assert_delta {
@@ -368,5 +370,109 @@ mod tests {
         unsafe {
             assert_eq!(gathertest_sse2(), 4.0);
         }
+    }
+
+
+    const SPECIAL_F32: &[f32] = &[0.0f32, -0.0f32, f32::INFINITY, f32::NEG_INFINITY, f32::MIN, f32::MAX, 1.0, f32::MIN_POSITIVE, -f32::MIN_POSITIVE, 1.844674e-25];
+    //const SPECIAL_F32: &[f32] = &[f32::INFINITY, f32::NEG_INFINITY, f32::MIN, f32::MAX, -f32::MIN, -f32::MAX];
+
+    struct FloatIter<S> {
+      prelude: usize,
+      v: f32,
+      step: u32,
+      phantom: std::marker::PhantomData<S>,
+    }
+    
+    impl<S> FloatIter<S> {
+      fn new(start: f32, step: u32) -> FloatIter<S> {
+        FloatIter {
+          prelude: 0,
+          v: start, 
+          step,
+          phantom: std::marker::PhantomData,
+        }
+      }
+    }
+    
+    impl<S: Simd> Iterator for FloatIter<S> {
+      type Item = S::Vf32;
+    
+      fn next(&mut self) -> Option<Self::Item> {
+    
+        // test all the special values first
+        if self.prelude < SPECIAL_F32.len() {
+          let v = unsafe { S::set1_ps(SPECIAL_F32[self.prelude]) };
+          self.prelude += 1;
+          return Some(v);
+        }
+    
+        if self.v == f32::INFINITY {
+          return None;
+        }
+    
+        let mut s = unsafe { S::set1_ps(0.0)};
+    
+        // Now walk through all the normal values
+        for i in 0 .. S::VF32_WIDTH {
+          let c = self.v;
+          s[i] = self.v;
+    
+          for i in 0..self.step {
+            self.v = self.v.next();
+          }
+        }
+    
+        Some(unsafe {
+            S::loadu_ps(&s[0])
+        })
+      }
+    }
+    
+    fn compare_simd_scalar<S: Simd, F1, F2>(f1: F1, f2: F2) where
+      F1: Fn(S::Vf32) -> S::Vf32,
+      F2: Fn(f32) -> f32,
+    {
+    
+      let f32_iter = FloatIter::<S>::new(1e-36, 8);
+    
+      for arg in f32_iter {
+    
+        let result_simd = f1(arg);
+    
+        for i in 0 .. S::VF32_WIDTH {
+    
+          let result_scalar = f2(arg[i]);
+          let diff = result_scalar.ulps(&result_simd[i]);
+    
+          if result_scalar.is_nan() && result_simd[i].is_nan() {
+              continue;
+          }
+
+          if diff > 4 || diff < -4 {
+            panic!("Arg: {}, SIMD: {}, Scalar: {}, ULPS: {}", arg[i], result_simd[i], result_scalar, diff);
+            return;
+          }
+        }
+      }
+    }
+
+    #[test]
+    fn test_log() {
+    
+        fn log(v: <Avx2 as Simd>::Vf32) -> <Avx2 as Simd>::Vf32 {
+            unsafe { Avx2::logf_ps(v)}
+        }
+
+        compare_simd_scalar::<Avx2,_,_>(log, f32::ln);
+    }
+
+    #[test]
+    fn test_lgammaf_ps() {
+    
+        fn lgammaf(v: <Avx2 as Simd>::Vf32) -> <Avx2 as Simd>::Vf32 {
+            unsafe { Avx2::lgammaf_ps(v)}
+        }
+
+        compare_simd_scalar::<Avx2,_,_>(lgammaf, ::libm::lgammaf);
     }
 }

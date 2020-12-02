@@ -47,6 +47,10 @@ impl Simd for Sse41 {
         I64x2_41(_mm_andnot_si128(a.0, b.0))
     }
     #[inline(always)]
+    unsafe fn testz_ps(a: Self::Vf32, b: Self::Vf32) -> i32 {
+        _mm_testz_ps(a.0, b.0)
+    }
+    #[inline(always)]
     unsafe fn blendv_epi32(a: Self::Vi32, b: Self::Vi32, mask: Self::Vi32) -> Self::Vi32 {
         I32x4_41(_mm_or_si128(
             _mm_andnot_si128(mask.0, a.0),

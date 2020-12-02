@@ -50,6 +50,10 @@ impl Simd for Avx2 {
         I64x4(_mm256_andnot_si256(a.0, b.0))
     }
     #[inline(always)]
+    unsafe fn testz_ps(a: Self::Vf32, b: Self::Vf32) -> i32 {
+        _mm256_testz_ps(a.0, b.0)
+    }
+    #[inline(always)]
     unsafe fn blendv_epi32(a: Self::Vi32, b: Self::Vi32, mask: Self::Vi32) -> Self::Vi32 {
         I32x8(_mm256_castps_si256(_mm256_blendv_ps(
             _mm256_castsi256_ps(a.0),

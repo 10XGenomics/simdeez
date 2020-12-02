@@ -164,6 +164,7 @@ mod macros;
 
 pub mod libm;
 pub mod scalar;
+pub mod special;
 #[cfg(any(target_arch = "x86_64",target_arch = "x86"))]
 pub mod sse2;
 #[cfg(any(target_arch = "x86_64",target_arch = "x86"))]
@@ -370,6 +371,10 @@ pub trait Simd {
     unsafe fn andnot_pd(a: Self::Vf64, b: Self::Vf64) -> Self::Vf64;
     unsafe fn andnot_epi32(a: Self::Vi32, b: Self::Vi32) -> Self::Vi32;
     unsafe fn andnot_epi64(a: Self::Vi64, b: Self::Vi64) -> Self::Vi64;
+
+    /// Test functions
+    unsafe fn testz_ps(a: Self::Vf32, b: Self::Vf32) -> i32;
+
     /// Note SSE2 will select B only when all bits are 1, while SSE41 and AVX2 only
     /// check the high bit. To maintain portability ensure all bits are 1 when using
     /// blend. Results of comparison operations adhere to this.
